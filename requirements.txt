@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+yt-dlp
+youtube-transcript-api
+faster-whisper
+deep-translator
+httpx

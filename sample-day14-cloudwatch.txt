@@ -1,0 +1,16 @@
+[00:00:00] 3am, your server breaks, no one knows until users complain.
+[00:00:05] Cloud Watch, monitoring and alarms.
+[00:00:08] Cloud Watch watches your AWS, day and night,
+[00:00:11] and tells you first when something goes wrong.
+[00:00:14] Think of it like this.
+[00:00:15] Without watching, you check only when it breaks
+[00:00:17] and users complain first, with Cloud Watch metrics are tracked
+[00:00:21] always and in alarm fires at once.
+[00:00:24] Here is the flow, CPU spikes, and alarm fires,
+[00:00:28] you get alerted, and you fix it before users even notice.
+[00:00:32] One common mistake, just check the logs when it breaks,
+[00:00:35] too late, users saw it first.
+[00:00:37] Cloud Watch alarms watch while you sleep, so you get told first.
+[00:00:42] Tomorrow, day 15, SNS, notifications to many people.
+[00:00:46] Check by hand or let alarms tell you which would you pick.
+[00:00:49] Tell me in the comments and follow for day 15.

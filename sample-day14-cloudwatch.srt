@@ -1,0 +1,63 @@
+1
+00:00:00,000 --> 00:00:05,000
+3am, your server breaks, no one knows until users complain.
+
+2
+00:00:05,000 --> 00:00:08,000
+Cloud Watch, monitoring and alarms.
+
+3
+00:00:08,000 --> 00:00:11,000
+Cloud Watch watches your AWS, day and night,
+
+4
+00:00:11,000 --> 00:00:14,000
+and tells you first when something goes wrong.
+
+5
+00:00:14,000 --> 00:00:15,000
+Think of it like this.
+
+6
+00:00:15,000 --> 00:00:17,000
+Without watching, you check only when it breaks
+
+7
+00:00:17,000 --> 00:00:21,000
+and users complain first, with Cloud Watch metrics are tracked
+
+8
+00:00:21,000 --> 00:00:24,000
+always and in alarm fires at once.
+
+9
+00:00:24,000 --> 00:00:28,000
+Here is the flow, CPU spikes, and alarm fires,
+
+10
+00:00:28,000 --> 00:00:32,000
+you get alerted, and you fix it before users even notice.
+
+11
+00:00:32,000 --> 00:00:35,000
+One common mistake, just check the logs when it breaks,
+
+12
+00:00:35,000 --> 00:00:37,000
+too late, users saw it first.
+
+13
+00:00:37,000 --> 00:00:42,000
+Cloud Watch alarms watch while you sleep, so you get told first.
+
+14
+00:00:42,000 --> 00:00:46,000
+Tomorrow, day 15, SNS, notifications to many people.
+
+15
+00:00:46,000 --> 00:00:49,000
+Check by hand or let alarms tell you which would you pick.
+
+16
+00:00:49,000 --> 00:00:52,000
+Tell me in the comments and follow for day 15.

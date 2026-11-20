@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YouTube Transcript Tool</title>
+<style>
+body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
+input, select, button { font-size: 16px; padding: 10px; }
+input { width: 100%; box-sizing: border-box; }
+.row { display: flex; gap: 8px; margin-top: 12px; }
+button { cursor: pointer; }
+#status { margin-top: 16px; color: #555; }
+.seg { margin: 8px 0; } .seg b { color: #c2410c; }
+pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>YouTube Transcript Tool</h1>
+<p>Paste a YouTube URL. Works even when the video has no captions, the audio is transcribed with Whisper.</p>
+<input id="url" type="url" placeholder="https://www.youtube.com/watch?v=...">
+<div class="row">
+<select id="lang">
+<option value="en">English</option><option value="hi">Hindi</option>
+<option value="es">Spanish</option><option value="fr">French</option>
+<option value="de">German</option><option value="ta">Tamil</option>
+<option value="bn">Bengali</option><option value="mr">Marathi</option>
+</select>
+<button id="go">Get transcript</button>
+</div>
+<div id="status"></div>
+<div id="actions" style="display:none; margin-top:12px">
+<button id="copy">Copy</button>
+<button id="dlTxt">Download .txt</button>
+<button id="dlSrt">Download .srt</button>
+</div>
+<div id="out"></div>
+<script>
+let jobId = null, result = null;
+const $ = id => document.getElementById(id);
+$('go').onclick = async () => {
+  const url = $('url').value.trim();
+  if (!url) return;
+  $('status').textContent = 'starting...'; $('out').innerHTML = ''; $('actions').style.display = 'none';
+  const r = await fetch('/api/jobs', {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({url, target_lang: $('lang').value})});
+  if (!r.ok) { $('status').textContent = (await r.json()).detail || 'bad url'; return; }
+  jobId = (await r.json()).job_id;
+  poll();
+};
+async function poll() {
+  const r = await fetch('/api/jobs/' + jobId);
+  const j = await r.json();
+  $('status').textContent = j.status === 'done'
+    ? `done, source: ${j.source}, detected language: ${j.source_lang}${j.translated ? ', translated to ' + j.target_lang : ''}${j.cached ? ' (cached)' : ''}`
+    : j.status === 'error' ? 'error: ' + j.error : j.status + '...';
+  if (j.status === 'done') {
+    result = j;
+    $('out').innerHTML = j.segments.map(s => `<div class="seg"><b>[${s.start}s]</b> ${s.text}</div>`).join('');
+    $('actions').style.display = 'block';
+  } else if (j.status !== 'error') {
+    setTimeout(poll, 2000);
+  }
+}
+$('copy').onclick = () => navigator.clipboard.writeText(result.txt);
+$('dlTxt').onclick = () => location.href = '/api/jobs/' + jobId + '/download?format=txt';
+$('dlSrt').onclick = () => location.href = '/api/jobs/' + jobId + '/download?format=srt';
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: youtube-transcript-tool
+    runtime: docker
+    plan: free
+    envVars:
+      - key: WHISPER_BACKEND
+        value: groq
+      - key: WHISPER_MODEL
+        value: base
+      - key: GROQ_API_KEY
+        sync: false
