@@ -43,6 +43,9 @@ def download_audio(video_id: str, workdir: Path) -> Path:
         "outtmpl": str(raw),
         "quiet": True,
         "noplaylist": True,
+        # Android / iOS player clients often bypass the web player bot
+        # check that blocks datacenter IPs. Try them before web.
+        "extractor_args": {"youtube": {"player_client": ["android", "ios", "web"]}},
         # This VM egresses through a proxy with its own CA; yt-dlp uses
         # certifi, not SSL_CERT_FILE, so point it at the bundle when present.
         # On a normal machine / host this is absent and yt-dlp uses its default.
@@ -61,13 +64,14 @@ def download_audio(video_id: str, workdir: Path) -> Path:
             ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
         except Exception as exc:
             msg = str(exc)
-            if "403" in msg or "Failed to extract any player response" in msg:
+            if ("403" in msg or "Failed to extract any player response" in msg
+                    or "Sign in to confirm" in msg or "not a bot" in msg):
                 raise RuntimeError(
-                    "YouTube blocked the download from this server "
-                    "(its player API returns 403 for datacenter/proxy IPs). "
-                    "On your own machine or an Oracle Always Free VM this "
-                    "usually works; if it still fails, add your browser "
-                    "cookies with yt-dlp --cookies-from-browser chrome.") from exc
+                    "YouTube is asking this server to sign in to confirm "
+                    "it is not a bot, so the audio download was blocked. "
+                    "Captions usually still work for most videos; for this "
+                    "video try again in a few minutes, or try a shorter "
+                    "video with captions.") from exc
             raise
     wav = workdir / "audio.wav"
     if not wav.exists():
@@ -76,6 +80,82 @@ def download_audio(video_id: str, workdir: Path) -> Path:
             raise RuntimeError("yt-dlp finished but no audio file was produced")
         wav = found[0]
     return wav
+
+
+def _parse_vtt(path: Path):
+    """Parse a yt-dlp subtitle .vtt file into segments."""
+    import re as _re
+    text = path.read_text(errors="ignore")
+    segments = []
+    time_re = _re.compile(
+        r"(\d+):(\d+):(\d+)\.(\d+)\s+-->\s+(\d+):(\d+):(\d+)\.(\d+)")
+
+    def _secs(h, m, s, ms):
+        return int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000
+
+    for block in text.split("\n\n"):
+        lines = [ln.strip() for ln in block.strip().splitlines() if ln.strip()]
+        if not lines:
+            continue
+        m = time_re.search(lines[0]) or (time_re.search(lines[1]) if len(lines) > 1 else None)
+        if not m:
+            continue
+        start = _secs(*m.groups()[:4])
+        end = _secs(*m.groups()[4:])
+        words = " ".join(lines[1:] if time_re.search(lines[0]) else lines[2:])
+        words = _re.sub(r"<[^>]+>", "", words).strip()
+        if words:
+            segments.append({"start": round(start, 2), "end": round(end, 2), "text": words})
+    return segments
+
+
+def _captions_via_yt_dlp(video_id: str, target_lang: str):
+    """Second caption source: yt-dlp with the Android player client,
+    which often bypasses the web bot check that blocks
+    youtube-transcript-api. Returns a result dict or None."""
+    import glob
+    with tempfile.TemporaryDirectory(prefix="yt-subs-") as tmp:
+        workdir = Path(tmp)
+        opts = {
+            "skip_download": True,
+            "writesubtitles": True,
+            "writeautomaticsub": True,
+            "subtitleslangs": [target_lang, "hi", "en"],
+            "subtitlesformat": "vtt",
+            "outtmpl": str(workdir / "%(id)s"),
+            "quiet": True,
+            "noplaylist": True,
+            "extractor_args": {"youtube": {"player_client": ["android", "ios", "web"]}},
+        }
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
+        except Exception:
+            return None
+        for vtt in sorted(workdir.glob("*.vtt")):
+            lang = vtt.stem.rsplit(".", 1)[-1] if "." in vtt.stem else "en"
+            segments = _parse_vtt(vtt)
+            if not segments:
+                continue
+            source_lang = lang.split("-")[0]
+            shown = segments
+            translated = False
+            if source_lang != target_lang:
+                try:
+                    shown, translated = translate_segments(segments, source_lang, target_lang)
+                except Exception:
+                    pass
+            return {
+                "video_id": video_id,
+                "source": "captions",
+                "source_lang": source_lang,
+                "target_lang": target_lang if translated else source_lang,
+                "translated": translated,
+                "segments": shown,
+                "txt": to_txt(shown),
+                "srt": to_srt(shown),
+            }
+    return None
 
 
 def try_captions(video_id: str, target_lang: str):
@@ -92,10 +172,10 @@ def try_captions(video_id: str, target_lang: str):
     try:
         listing = YouTubeTranscriptApi().list(video_id)
     except Exception:
-        return None
+        return _captions_via_yt_dlp(video_id, target_lang)
     available = list(listing)
     if not available:
-        return None
+        return _captions_via_yt_dlp(video_id, target_lang)
     by_code = {t.language_code: t for t in available}
     chosen, translated = None, False
     if target_lang in by_code:
@@ -118,9 +198,9 @@ def try_captions(video_id: str, target_lang: str):
             "text": s.text.strip(),
         } for s in fetched if s.text.strip()]
     except Exception:
-        return None
+        return _captions_via_yt_dlp(video_id, target_lang)
     if not segments:
-        return None
+        return _captions_via_yt_dlp(video_id, target_lang)
     if source_lang != target_lang and not translated:
         try:
             segments, translated = translate_segments(segments, source_lang, target_lang)
