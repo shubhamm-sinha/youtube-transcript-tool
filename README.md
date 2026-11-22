@@ -1,3 +1,13 @@
+---
+title: YouTube Transcript Tool
+emoji: 📺
+colorFrom: red
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # YouTube Transcript Tool (free, captions first, Whisper fallback)
 
 Paste a YouTube URL, get a transcript. Captions are checked first (fast,
